@@ -134,8 +134,3 @@ dependencies {
   "ksp"(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
-
-tasks.withType<Test> {
-    testLogging {
-        events("passed", "failed", "skipped")
-}
