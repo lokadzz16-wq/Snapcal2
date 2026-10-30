@@ -40,6 +40,7 @@ android {
       keyPassword = "android"
     }
   }
+// signingConfig = signingConfigs.getByName("debugConfig")
 
   buildTypes {
     release {
