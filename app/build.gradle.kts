@@ -136,8 +136,6 @@ dependencies {
 }
 
 tasks.withType<Test> {
-    failFast = true
     testLogging {
         events("passed", "failed", "skipped")
-    }
 }
