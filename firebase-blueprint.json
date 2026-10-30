@@ -1,0 +1,54 @@
+{
+  "entities": {
+    "Meal": {
+      "title": "Meal",
+      "description": "A saved meal in the user's food diary",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the meal" },
+        "userId": { "type": "string", "description": "ID of the user who owns this meal" },
+        "name": { "type": "string", "description": "Display name of the meal" },
+        "mealType": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"], "description": "Category of the meal" },
+        "eatenAt": { "type": "string", "description": "ISO datetime string when the meal was eaten" },
+        "thumbnail": { "type": "string", "description": "Base64 JPEG thumbnail or null" },
+        "items": { "type": "array", "description": "List of food items with portions and nutrition" },
+        "micronutrients": { "type": "array", "description": "Notable vitamins and minerals" },
+        "calories": { "type": "number", "description": "Total calories in kcal" },
+        "protein_g": { "type": "number", "description": "Total protein in grams" },
+        "carbs_g": { "type": "number", "description": "Total carbs in grams" },
+        "fat_g": { "type": "number", "description": "Total fat in grams" },
+        "fiber_g": { "type": "number", "description": "Total fiber in grams" },
+        "sugar_g": { "type": "number", "description": "Total sugar in grams" },
+        "sodium_mg": { "type": "number", "description": "Total sodium in milligrams" },
+        "health_score": { "type": "number", "description": "Overall nutritional health score from 1 to 10" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when record was created" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp when record was updated" }
+      },
+      "required": ["id", "userId", "name", "mealType", "calories", "protein_g", "carbs_g", "fat_g", "createdAt"]
+    },
+    "Goal": {
+      "title": "Goal",
+      "description": "Daily nutritional targets for the user",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "User ID owning the goals" },
+        "calories": { "type": "integer", "description": "Daily calorie target (500 - 10000)" },
+        "protein_g": { "type": "integer", "description": "Daily protein target in grams (10 - 500)" },
+        "goalType": { "type": "string", "enum": ["cut", "maintain", "bulk"], "description": "Active goal strategy" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when goal was created" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Timestamp when goal was updated" }
+      },
+      "required": ["userId", "calories", "protein_g", "goalType", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/meals/{mealId}": {
+      "schema": { "$ref": "#/entities/Meal" },
+      "description": "User's saved meals"
+    },
+    "/users/{userId}/goals/{goalId}": {
+      "schema": { "$ref": "#/entities/Goal" },
+      "description": "User's daily nutrition goals"
+    }
+  }
+}

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<resources>
+    <string name="firestore_database_id" translatable="false">ai-studio-android-snapcal-b41e50f4-8401-495e-853b-1d6480d5444e</string>
+    <string name="recaptcha_site_key" translatable="false">6Lc54AcuAAAAAGWjQowHgTu-s2THkyX58h5aUL9O</string>
+    <string name="default_web_client_id" translatable="false">221407707480-639gc9qmtt1620muk49bkeg0vsj31etd.apps.googleusercontent.com</string>
+</resources>

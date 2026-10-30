@@ -1,0 +1,899 @@
+Build a mobile-first, installable-feeling web app called "SnapCal" using React + TypeScript + Tailwind CSS, with components in the style of shadcn/ui (Radix primitives), lucide-react icons, recharts for charts, sonner for toasts and date-fns. Follow every detail below exactly. Do not add extra features, pages, colors or sections, and do not change any wording.
+
+========================================
+1. WHAT THE APP IS
+========================================
+SnapCal estimates calories, macros, micronutrients and a health score from a photo of a meal using the Gemini API. The user can edit portions, rename or remove items, add missed foods, and re-analyze with extra context. Meals are saved to a diary. The app has four pages: Snap (/), Diary (/diary), Insights (/insights), Goals (/goals). It has three languages (Arabic, English, French), one warm dark theme only, and a footer credit.
+
+Page titles / meta:
+- /  → "SnapCal — Snap a photo, know your calories" (description: "Snap a photo of any meal and SnapCal's AI estimates calories, protein, carbs, fat and more in seconds.")
+- /diary → "Diary — SnapCal" (description: "Your saved meals, grouped by day, with totals against your goals.")
+- /insights → "Insights — SnapCal" (description: "Daily calorie and protein trends against your goals.")
+- /goals → "Goals — SnapCal" (description: "Set your daily calorie and protein targets.")
+Unknown route → 404 page: centered, "404" (text-7xl bold), then t("notFound.title") as h2 (text-xl semibold), t("notFound.text") (text-sm muted), and a primary button t("notFound.home") linking to "/".
+Global error boundary: centered title t("error.title"), text t("err.server"), buttons t("error.retry") (primary) and t("notFound.home") (outlined link to "/").
+
+========================================
+2. DESIGN SYSTEM (EXACT)
+========================================
+One dark theme only. <html> has color-scheme: dark. Define these CSS variables on :root and map them to Tailwind colors (background, foreground, card, card-foreground, popover, popover-foreground, primary, primary-foreground, primary-soft, secondary, secondary-foreground, muted, muted-foreground, accent, accent-foreground, warm, warm-foreground, warm-soft, protein, carbs, fat, success, destructive, destructive-foreground, border, input, ring):
+
+--radius: 1rem
+--background: oklch(0.193 0.008 52)
+--foreground: oklch(0.944 0.014 67)
+--card: oklch(0.224 0.009 54)
+--card-foreground: oklch(0.944 0.014 67)
+--popover: oklch(0.224 0.009 54)
+--popover-foreground: oklch(0.944 0.014 67)
+--primary: oklch(0.68 0.145 41)
+--primary-foreground: oklch(0.193 0.008 52)
+--primary-soft: oklch(0.29 0.04 43)
+--secondary: oklch(0.27 0.012 54)
+--secondary-foreground: oklch(0.944 0.014 67)
+--muted: oklch(0.26 0.01 54)
+--muted-foreground: oklch(0.78 0.018 65)
+--accent: oklch(0.29 0.04 43)
+--accent-foreground: oklch(0.944 0.014 67)
+--warm: oklch(0.68 0.145 41)
+--warm-foreground: oklch(0.193 0.008 52)
+--warm-soft: oklch(0.29 0.04 43)
+--protein: oklch(0.68 0.145 41)
+--carbs: oklch(0.79 0.075 74)
+--fat: oklch(0.62 0.055 248)
+--success: oklch(0.79 0.075 74)
+--destructive: oklch(0.67 0.17 28)
+--destructive-foreground: oklch(0.193 0.008 52)
+--border: oklch(0.275 0.012 58)
+--input: oklch(0.32 0.014 58)
+--ring: oklch(0.68 0.145 41)
+--chart-1: var(--primary); --chart-2: var(--warm); --chart-3: var(--carbs); --chart-4: var(--fat); --chart-5: oklch(0.6 0.08 220)
+--shadow-soft: none  (a "shadow-soft" utility = box-shadow: var(--shadow-soft), so cards have NO shadow)
+
+All borders use var(--border). Radii: sm = radius-4px, md = radius-2px, lg = radius, xl = radius+4px, 2xl = radius+8px, 3xl = radius+12px.
+The palette is warm charcoal brown with a terracotta/coral primary and sand accent. NO green, NO black-and-green, no gradients, no glow, no glassmorphism.
+
+Fonts (load exactly this Google Fonts stylesheet):
+https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Outfit:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap
+- Body (sans): "Outfit", ui-sans-serif, system-ui, sans-serif, antialiased.
+- Display (class font-display, used on headings, big numbers, logo): "Fraunces", ui-serif, Georgia, serif.
+- When <html lang="ar">, body font is "IBM Plex Sans Arabic", "Outfit", ui-sans-serif, system-ui, sans-serif.
+
+Animation "animate-scan": keyframes translateY(-100%) → translateY(400%), 1.8s ease-in-out infinite.
+
+Button component (shadcn style) base: inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold cursor-pointer transition-all; focus-visible ring-2 ring-ring ring-offset-2 ring-offset-background; disabled: opacity-50 and no pointer events; child svg size-4.
+Variants: default = bg-primary text-primary-foreground hover:bg-primary/90 | destructive = bg-destructive text-destructive-foreground | outline = border border-input bg-background hover:bg-accent hover:text-accent-foreground | secondary = bg-secondary text-secondary-foreground hover:bg-secondary/80 | ghost = hover:bg-accent hover:text-accent-foreground | link | hero = same as default plus active:scale-[0.98] | warm = bg-warm text-warm-foreground.
+Sizes: default h-10 px-4 py-2 | sm h-8 rounded-lg px-3 text-xs | lg h-12 px-6 text-base | xl h-16 rounded-2xl px-8 text-lg | icon h-10 w-10.
+Badge variants: default (filled primary), secondary, outline.
+
+========================================
+3. LANGUAGES / i18n / RTL
+========================================
+Languages: ar (العربية), en (English), fr (Français). Native names are shown in the switcher.
+- Default: stored choice in localStorage key "snapcal.lang", else the first browser language whose base code (before "-") is ar/en/fr, else English.
+- Changing language stores it and sets <html lang> and <html dir> ("rtl" for Arabic, "ltr" otherwise). The whole layout must mirror correctly in RTL: use logical Tailwind classes (ms-, me-, ps-, text-start, text-end), and wrap the app in a Radix DirectionProvider.
+- All dates and numbers are formatted with Intl using locale `${lang}-u-nu-latn` so digits are ALWAYS Latin (0-9), even in Arabic.
+- Translation function t(key, vars): looks up the current language, falls back to English, then to the key; replaces {name} placeholders.
+- The footer is ALWAYS dir="ltr".
+
+========================================
+4. GLOBAL LAYOUT
+========================================
+Order: TopNav, then a wrapper with class "pb-24 md:pb-0" containing the routed page and the footer, then BottomTabs, then a sonner Toaster (richColors, position top-center).
+
+Footer: <footer class="mx-auto max-w-5xl px-4 py-6 text-center text-xs text-muted-foreground" dir="ltr"> with the exact text: made by keyaraga
+
+TopNav: <header> sticky top-0 z-30 border-b bg-background. Inner: mx-auto flex h-16 max-w-5xl items-center justify-between px-4.
+- Left: link to "/" with font-display text-xl font-semibold, containing a size-8 rounded-lg bg-primary text-primary-foreground square with a Camera icon (size-4), then the text "SnapCal".
+- Center (hidden below md, flex gap-1): four tab links in order Snap, Diary, Insights, Goals (labels t("nav.snap"/"nav.diary"/"nav.insights"/"nav.goals")), each rounded-xl px-4 py-2 text-sm font-medium text-muted-foreground, hover bg-muted + text-foreground; ACTIVE (exact route match) = bg-primary-soft text-accent-foreground.
+- Right: (a) language dropdown: ghost sm button with Languages icon + current native language name, aria-label/title t("nav.language"); menu is a radio group aligned to end listing the three native names. (b) if signed in: ghost sm button with LogOut icon + text t("nav.signOut") (text hidden below sm); if signed out: outline sm button t("nav.signIn") that opens the auth dialog with reason t("auth.reasonNav").
+
+BottomTabs (mobile only, md:hidden): <nav> fixed inset-x-0 bottom-0 z-30 border-t bg-card with padding-bottom env(safe-area-inset-bottom). A 4-column grid; each tab is a vertical stack: icon size-5 above label (text-xs font-medium), py-2.5, muted color, ACTIVE = text-primary. Icons: Snap = Camera, Diary = BookOpen, Insights = LineChart, Goals = Target.
+
+Every page's <main> uses: mx-auto max-w-3xl px-4 py-6 md:py-10.
+Cards everywhere: rounded-3xl border bg-card p-5 (no shadow).
+
+========================================
+5. SNAP PAGE ( / )
+========================================
+State machine: idle → analyzing → (result | nofood | error).
+
+IDLE (space-y-10):
+(a) Hero card <section> rounded-3xl border bg-card p-6 text-center md:p-10. It is a drag-and-drop target: while dragging over, add border-primary bg-primary-soft. Dropping an image file analyzes it.
+  - Icon tile: mx-auto grid size-16 place-items-center rounded-3xl bg-primary text-primary-foreground with Camera icon size-7.
+  - h1: mt-5 font-display text-4xl font-semibold leading-tight md:text-5xl, content t("snap.title1") <br> t("snap.title2").
+  - Subtitle p: mx-auto mt-3 max-w-md text-muted-foreground → t("snap.subtitle").
+  - Buttons: mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center. (1) hero lg button (full width on mobile) with Camera icon + t("how.s1t") — opens the camera via a hidden <input type="file" accept="image/*" capture="environment">. (2) outline lg button with ImagePlus icon + t("snap.upload") — opens a hidden gallery <input type="file" accept="image/*">. Inputs have aria-labels t("snap.cameraLabel") / t("snap.uploadLabel"); reset input value after each selection.
+  - Hint (hidden below md): mt-4 text-xs text-muted-foreground → t("snap.drop").
+(b) "How it works" <section>: h2 centered font-display text-2xl font-semibold → t("how.title"). Then <ol> mt-6 grid gap-4 sm:grid-cols-3. Each <li> rounded-3xl border bg-card p-5: a row with a size-10 rounded-2xl bg-primary-soft text-accent-foreground tile holding the icon (size-5) and the step number (font-display text-lg font-semibold text-muted-foreground, 1/2/3); then h3 mt-3 font-semibold = t("how.sNt"); then p mt-1 text-sm text-muted-foreground = t("how.sNd"). Icons: step1 Camera, step2 Sparkles, step3 Target.
+
+FILE HANDLING: validate (must start with image/, ≤ 10 MB, not empty) → on failure show an error toast using err.notImage / err.tooBig / err.empty. Then compress: draw to canvas scaled so the longest side ≤ 1280px, export JPEG quality 0.8 as a data URL (failure → toast err.cantRead). Reset the context text to "" and the meal type to guessMealType(), then analyze.
+
+ANALYZING: max-w-md. An image container relative overflow-hidden rounded-3xl containing the photo (max-h-96 w-full object-cover, alt t("analyzing.alt")) and an absolutely-positioned horizontal bar (inset-x-0, h-1, bg-primary, animate-scan). Under it, centered text-sm muted with a spinning Loader2 (size-4) and a rotating message cycling t("analyzing.0")…t("analyzing.4") every 2200 ms (role="status").
+
+NO FOOD (max-w-md, centered, space-y-5): photo (max-h-72 w-full rounded-3xl object-cover), h1 font-display text-3xl font-semibold t("nofood.title"), the reason text (from the AI's not_food_reason, else t("nofood.default")) in muted color, and a hero lg button with Camera icon t("nofood.retry") that returns to idle. Shown when is_food=false or items is empty.
+
+ERROR (same layout): photo with opacity-80, title t("error.title"), text t("err.<code>") where code ∈ rate_limit | credits | bad_image | denied | server | network. Buttons: hero lg with RefreshCw "t(error.retry)" (re-runs analysis with the current context text) and outline lg with Camera "t(error.newPhoto)" (back to idle). If the request itself throws, show code "network".
+
+RESULT (space-y-6):
+1. Main card (overflow-hidden rounded-3xl border bg-card): the photo (max-h-72 w-full object-cover), then p-5:
+   - Row: h1 font-display text-3xl font-semibold capitalize = meal name; right: Badge capitalize = t("conf.<confidence>") (high → default variant, medium → secondary, low → outline).
+   - mt-4 row: total calories in font-display text-6xl font-bold tabular-nums leading-none + t("unit.kcal") (text-lg muted).
+   - MacroDonut (see below).
+   - 4 stat tiles (dl, mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4), each rounded-2xl bg-muted p-3 text-center: label (text-[11px] uppercase tracking-wide muted) and value (font-semibold tabular-nums): Fiber "X g" (1 decimal), Sugar "X g" (1 decimal), Sodium "X mg" (integer), Sat. fat "X g" (1 decimal). Labels t("nut.fiber"/"nut.sugar"/"nut.sodium"/"nut.satFat").
+2. Section "What's on the plate": h2 font-display text-xl font-semibold t("result.plate"); hint text-sm muted t("result.plateHint"); then the ITEM EDITOR.
+3. Micronutrients card (only if any): h2 t("result.micros"); chips: flex flex-wrap gap-2, each rounded-full bg-primary-soft px-3 py-1.5 text-sm text-accent-foreground with <strong>name</strong> · amount.
+4. Health score card: row with a size-14 rounded-2xl tile (font-display text-2xl font-bold) showing the rounded score; tile style: score ≥ 7 → bg-primary-soft text-success; 4–6.99 → bg-warm-soft text-warm-foreground; < 4 → bg-destructive/10 text-destructive. Beside it h2 t("result.health") and the AI's health_reason (text-sm muted).
+5. Assumptions card (only if notes exist): h2 t("result.assumptions") + disc list (list-disc space-y-1 ps-5 text-sm muted).
+6. Context card: h2 t("result.contextTitle"), hint t("result.contextHint"), a Textarea (rows 2, maxLength 500, placeholder t("result.contextPlaceholder"), aria-label t("result.contextLabel")), and a secondary button with RefreshCw t("result.reanalyze") (disabled when the textarea is empty) that re-runs the analysis with that context.
+7. Save card: h2 t("result.saveTitle"); meal type pills (radiogroup, rounded-full outline buttons, px-4 py-1.5 text-sm font-medium) for breakfast/lunch/dinner/snack labelled t("meal.<type>"); selected pill = border-primary bg-primary text-primary-foreground, unselected = bg-card text-muted-foreground. Default type = guessMealType(). Then: if not saved → hero lg full-width button (UtensilsCrossed icon, or spinner while saving) t("result.save"); if saved → a rounded-2xl bg-primary-soft p-4 row with t("result.saved") (text-sm font-medium text-accent-foreground) and a secondary sm button t("result.viewDiary") linking to /diary.
+8. Bottom: centered column with the Disclaimer (Info icon size-3.5 + t("disclaimer"), text-xs muted) and a ghost button with Camera t("result.another") that resets to idle.
+
+SAVING: if no signed-in user → open the auth dialog with reason t("auth.reasonSave") and after successful sign-in automatically save. On success toast t("result.saved") and refresh the meals list; on failure toast t("result.saveFailed").
+
+guessMealType(date = now): hour 4–10 → breakfast; 11–14 → lunch; 17–21 → dinner; everything else → snack.
+
+MACRO DONUT: row (items-center gap-5). Left: a 144×144 recharts donut (inner radius 68%, outer 100%, paddingAngle 3, no stroke, no animation) of 3 slices sized by CALORIES (protein g×4, carbs g×4, fat g×9) colored var(--protein), var(--carbs), var(--fat); if all zero show a single var(--muted) ring. In the center: protein grams (text-2xl font-bold text-protein, e.g. "32g") over the label t("nut.protein") (text-[11px] uppercase tracking-wide muted). Accessible label t("donut.aria", {p,c,f}) with percentages. Right: a list, each row = colored dot (size-3 rounded-full) + name (t("nut.protein"/"nut.carbs"/"nut.fat")) on the left, and on the right bold "{grams} g" followed by a muted percentage "{pct}%" (ms-2). Percentages are each macro's share of total macro calories, rounded.
+
+ITEM EDITOR (list space-y-3 of item cards + an "add" form):
+Item card (rounded-2xl border bg-card p-4):
+- Top row: left = name (truncate font-semibold capitalize; becomes an Input in rename mode, committed on blur/Enter) and below it the portion_description (text-xs muted). Right (text-end) = the item's calories (text-lg font-bold tabular-nums) over t("unit.kcal") (text-[11px] muted).
+- Macro line (mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs tabular-nums): "P 12.3g" in font-semibold text-protein, then "C …g", "F …g", "Fiber …g" in muted (labels t("nut.p"), t("nut.c"), t("nut.f"), t("nut.fiber"); 1 decimal).
+- Portion row (mt-4 flex items-center gap-2): outline icon button (size-8) with Minus (−10 g), a Slider (min 1, max = max(500, ceil(grams×2.5/50)×50), step 1, flex-1), outline icon button (size-8) with Plus (+10 g), then a number Input (h-8 w-16 px-2 text-end tabular-nums) with a muted "g" label. Grams are always clamped to 1–3000 and rounded. Totals update instantly.
+- Bottom row (mt-2 flex justify-end gap-1): ghost sm button Pencil t("item.rename"); ghost sm button Trash2 t("item.remove") in text-destructive.
+Add form (flex flex-wrap gap-2 rounded-2xl border border-dashed p-3): text Input (flex-1, placeholder t("item.addPlaceholder")), number Input (w-20, placeholder t("unit.g")), secondary button (Plus or spinner) t("item.add") (disabled while busy or empty name). Submitting calls the AI single-food estimator (section 9b) with the name, optional grams (else "a typical single serving") and current language, then appends the item. Failures → toast t("err.<code>") or t("err.lookup").
+
+========================================
+6. DIARY PAGE ( /diary )
+========================================
+- While auth is loading: centered spinner (Loader2 size-6 muted, aria-label t("loading")).
+- Signed out: centered max-w-md py-16: size-14 rounded-3xl bg-primary-soft icon tile (BookOpen), h1 font-display text-3xl font-semibold t("diary.title"), text t("diary.signedOut"), hero lg button t("auth.signIn") → auth dialog (reason t("auth.reasonDiary")).
+- Header h1 font-display text-3xl font-semibold t("diary.title").
+- Empty: dashed rounded-3xl card, p-10, centered: icon tile (UtensilsCrossed), h2 font-display text-2xl t("diary.emptyTitle"), text t("diary.emptyText"), hero lg link button to "/" labelled t("how.s1t").
+- Otherwise: meals of the last 30 days (newest first, max 1000), grouped by LOCAL calendar day, days sorted newest first (space-y-8). Each day section:
+  • Heading row: h2 font-display text-xl font-semibold = t("diary.today") / t("diary.yesterday") / otherwise Intl date (weekday long, month short, day numeric) using the Latin-digit locale; right side text-sm tabular-nums muted t("diary.summary", {kcal, p}).
+  • Line (mt-2 text-sm muted): t("goal.badge", {type: t("goal.<goalType>")}) + " · " + the status text t("status.<state>", {n: diff}) — colored text-warm when flagged.
+  • Two progress cards (grid gap-2 sm:grid-cols-2, each rounded-2xl border bg-card p-3): label left (t("nut.calories") / t("nut.protein")) and "X / goal unit" right (text-xs muted tabular-nums), then a shadcn Progress bar (value = min(100, round(total/goal×100))) with aria-label t("diary.ofGoal", {name, v}).
+  • Meal rows (mt-3 space-y-2): each a full-width ghost button styled "flex h-auto w-full items-center gap-3 rounded-2xl border bg-card p-3 text-start hover:bg-muted/60": 56px (size-14) rounded-xl thumbnail (object-cover) or, if none, a bg-primary-soft tile with UtensilsCrossed; middle: name (truncate font-semibold capitalize) and "<meal type> · <time>" (text-xs capitalize muted, Intl hour numeric + minute 2-digit); right: calories (font-bold tabular-nums) over t("unit.kcal").
+- Clicking a meal opens a Dialog (rounded-3xl, sm:max-w-lg, max-h-[90vh] overflow-y-auto): title = meal name (font-display text-2xl capitalize; "t(diary.editMeal)" while editing), thumbnail (max-h-48 rounded-2xl), "<meal type> · <date medium + time short>".
+  View mode: big calories (font-display text-5xl bold) + unit, MacroDonut, item list (name left capitalize, "N g" right muted), micronutrient chips (rounded-full bg-primary-soft px-3 py-1 text-xs), "Health score: X/10" line if present, Disclaimer, and buttons: secondary flex-1 Pencil t("diary.edit") and outline Trash2 t("diary.delete") in destructive color.
+  Edit mode: Name input (label t("diary.name")), the ITEM EDITOR, then hero flex-1 button t("diary.saveChanges") and outline t("diary.cancel"). Saving recomputes totals from the items and updates name, items and totals; toast t("diary.updated") / t("diary.updateFailed").
+  Delete: opens an AlertDialog (rounded-3xl): title t("diary.deleteTitle"), description t("diary.deleteText", {name}), cancel t("diary.cancel"), action t("diary.delete") (bg-destructive). Toast t("diary.deleted") / t("diary.deleteFailed").
+
+========================================
+7. INSIGHTS PAGE ( /insights )
+========================================
+- Loading and signed-out states identical in structure to Diary (icon LineChart, title t("insights.title"), text t("insights.signedOut"), auth reason t("auth.reasonInsights")).
+- Header row: h1 font-display text-3xl font-semibold t("insights.title") and a pill toggle (role tablist, rounded-full border bg-card p-1) with two ghost buttons: t("insights.days",{n:7}) and t("insights.days",{n:30}); the active one is bg-primary text-primary-foreground, inactive = text-muted-foreground. Default 7 days.
+- Line below: t("goal.badge",{type}) and, if there is any data, " · " + status text using the AVERAGE messages (status.avgOver / avgShort / avgLeft / avgMet with {n}), text-warm when flagged.
+- Empty state (dashed card): icon LineChart, t("insights.emptyTitle"), t("insights.emptyText"), hero lg link to "/" labelled t("how.s1t").
+- Otherwise: two stat cards side by side on sm+ (rounded-3xl border bg-card p-5 text-center): small uppercase label t("insights.avgCal") / t("insights.avgPro"), a big font-display text-4xl font-bold tabular-nums value (protein value text-protein), and a small muted line t("insights.goalKcal",{n}) / t("insights.goalG",{n}). Averages are the sum over the selected window divided by the number of days in the window (days with no meals count as 0); calories rounded, protein to 1 decimal.
+- Two chart cards, each: h2 font-display text-xl font-semibold (t("insights.calTitle") / t("insights.proTitle")), text-xs muted t("insights.goalLine"), and a recharts BarChart h-56 (margins top 8, right 8, left -16, bottom 0) with a dashed horizontal CartesianGrid (stroke var(--border), no vertical lines), XAxis (day labels, tick fontSize 11 fill var(--muted-foreground), no tick line/axis line; interval 0 for 7 days, 4 for 30 days; labels = short weekday for 7 days, "day month-short" for 30 days), YAxis (same styling), Tooltip (cursor fill var(--muted); content: background var(--card), 1px solid var(--border), border-radius 1rem, font 12; formatter "N kcal"/"N g" with the series name), a dashed ReferenceLine (stroke var(--warm), strokeDasharray "5 4") at the goal value with label t("insights.goal") in var(--warm) size 11 positioned insideTopRight, and Bars with rounded tops [6,6,0,0]: calories fill var(--primary), protein fill var(--protein).
+
+========================================
+8. GOALS PAGE ( /goals )
+========================================
+- Loading and signed-out states like Diary (icon Target, title t("goals.title"), text t("goals.signedOut"), button t("nav.signIn"), auth reason t("auth.reasonGoals")).
+- h1 t("goals.title"); subtitle t("goals.subtitle") (muted).
+- Goal type section: h2 font-display text-xl t("goals.typeTitle"); radiogroup grid gap-3 sm:grid-cols-3 with three large buttons (h-auto min-h-28 flex-col items-start whitespace-normal p-4 text-start). Selected = default (filled primary) variant, others outline. Each has a base-size semibold title t("goal.cut"/"goal.maintain"/"goal.bulk") and a text-sm normal-weight description t("goal.cutDesc"/"goal.maintainDesc"/"goal.bulkDesc"). Changing goal type also clears any calculator estimate.
+- Daily targets card: h2 t("goals.targets"); grid sm:grid-cols-2 with two number inputs: calories (label t("goals.calLabel"), min 500, max 10000, default 2000) and protein (label t("goals.proLabel"), min 10, max 500, default 100); hero button with Target icon t("goals.save"). Validation on save: calories must be 500–10000 else toast t("goals.calRange"); protein 10–500 else toast t("goals.proRange"). Success toast t("goals.saved"), failure toast t("goals.saveFailed"). Saves calories, protein_g and goal_type.
+- Quick calculator card: h2 with Calculator icon t("goals.calc"); hint t("goals.calcHint"); grid sm:grid-cols-2 fields: Age (placeholder 32), Sex (select: t("goals.male") / t("goals.female")), Height cm (placeholder 175), Weight kg (placeholder 70), Activity (select, spans 2 columns, default "moderate") with options t("act.sedentary"/"act.light"/"act.moderate"/"act.active"/"act.very"). Secondary button with Calculator icon t("goals.calculate"). Validation: age 10–120, height 100–250, weight 30–400, all required, else toast t("goals.realistic").
+  Result box (mt-4 rounded-2xl bg-primary-soft p-4, text-sm text-accent-foreground), lines: "t(goals.maintenance): <b>N kcal</b>", "t(goals.target,{type}): <b>N kcal</b>", "t(nut.protein): <b>N g</b> · t(goals.proteinRate,{rate})", plus t("goals.floorNote",{n}) when the cut floor was applied. Below it a hero sm button t("goals.apply") that fills the two inputs and shows toast t("goals.applied") (the user must still press Save).
+- Disclaimer at the bottom (mt-6).
+
+========================================
+9. CORE LOGIC (EXACT)
+========================================
+Nutrition model:
+- Nutrient keys: calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg, saturated_fat_g.
+- FoodItem = { id (random 8-char base36), name, grams, portion_description, per_gram: {all 8 nutrients PER GRAM} }.
+- Build an item from AI values: grams = max(1, round(grams if it is a positive finite number, else 100)); per_gram[k] = (value if positive finite else 0) / grams; name trimmed or "Food item"; portion_description trimmed or "{grams} g".
+- An item's nutrients = per_gram × current grams. TOTALS ARE ALWAYS COMPUTED FROM THE ITEMS, never trusted from the model.
+- Saved meal columns from totals: calories rounded to integer; protein, carbs, fat, fiber, sugar rounded to 1 decimal; sodium_mg integer.
+
+Goals logic:
+- Goal types: cut, maintain, bulk. Defaults: calories 2000, protein 100 g, goal_type "maintain".
+- Activity factors: sedentary 1.2, light 1.375, moderate 1.55, active 1.725, very 1.9.
+- Calorie factor by goal: cut 0.8, maintain 1.0, bulk 1.1. Protein g per kg by goal: cut 2.0, maintain 1.6, bulk 1.8.
+- Cut calorie floor: male 1500, female 1200 (use min(floor, maintenance)); if the cut result is below the floor, raise it to the floor and show the floor note.
+- BMR (Mifflin–St Jeor) = 10×kg + 6.25×cm − 5×age + (male +5 / female −161). maintenance = round-to-nearest-10(BMR × activity). calories = round-to-nearest-10(maintenance × goal factor). protein_g = round(kg × protein-per-kg).
+- calorieStatus(goal, consumed, target): diff = round(consumed − target), abs = |diff|.
+  cut: diff > 0 → state "over", flagged; else state = "met" if abs ≤ 5% of target, otherwise "left"; not flagged.
+  bulk: diff ≥ 0 → "met"; else "short", flagged.
+  maintain: abs ≤ 10% of target → "met"; diff > 0 → "over", flagged; else "left".
+  Text keys: status.over / status.short / status.left / status.met (diary) and status.avgOver / avgShort / avgLeft / avgMet (insights).
+
+9a. AI MEAL ANALYSIS (Gemini)
+Call the Gemini API from the app with the @google/genai SDK and the API key provided by AI Studio. Use the latest Gemini Flash model available in AI Studio that supports image input. Send the photo as inline base64 (mimeType image/jpeg) plus a text part, use the system prompt below, and request structured JSON output (responseMimeType "application/json" with the response schema below). Retries: none. Validate the image is a data URL matching data:image/(jpeg|png|webp);base64, and is ≤ 8,000,000 characters; trim the user's context to 500 chars.
+
+User text part:
+- without context: "Analyze this meal. <LANGUAGE_RULE>"
+- with context:   "Analyze this meal. <LANGUAGE_RULE> User context: \"<context>\""
+LANGUAGE_RULE = "Write all human-readable string values (meal_name, item names, portion_description, not_food_reason, micronutrient names, health_reason and notes) in <Arabic|English|French>. Keep every JSON key, enum value and numeric value unchanged; use Latin digits." (language = the app's current language).
+
+SYSTEM PROMPT (use verbatim):
+"""
+You are SnapCal, an expert registered dietitian and food-recognition specialist.
+You receive a photo of a meal (and optionally user context) and estimate its nutrition.
+
+Method:
+1. Identify EVERY distinct food and drink visible, listing components separately (e.g. "grilled salmon", "white rice", "steamed broccoli", "butter sauce").
+2. Estimate each portion in grams using visual cues: plate/bowl diameter (a standard dinner plate is ~26 cm), utensils, hands, packaging and food thickness. Also give a human description like "1 cup" or "1 medium fillet".
+3. Account for likely hidden calories: cooking oils, butter, dressings, sauces, breading and frying method. If oil is likely, include it as its own item or fold it into the cooked item and say so in notes.
+4. Compute each item's figures from standard nutrition database values per 100 g (USDA FoodData Central style) scaled to the estimated grams. Values are for the whole portion, not per 100 g.
+5. Be conservative and honest. Do not invent precision. Lower confidence when the food is ambiguous, partly hidden or the portion is hard to judge.
+6. User context overrides your visual guesses (e.g. "no sauce", "olive oil", "half eaten").
+
+Output rules:
+- is_food=false with empty items if the image does not clearly show food or drink; put a short friendly reason in not_food_reason.
+- micronutrients: only vitamins/minerals present in notable amounts (>=10% daily value), as name + amount with unit, max 8.
+- health_score 1-10 (10 = very nutritious, balanced, minimally processed) with a one-sentence reason.
+- notes: 1-4 short assumptions (cooking method, hidden oil, sauce, portion uncertainty).
+- Respond only with JSON matching the schema.
+"""
+Also append to the system prompt: "Required JSON schema (include every field; use an empty string for not_food_reason when food is present):" followed by the JSON schema.
+
+RESPONSE SCHEMA (all fields required):
+{
+ is_food: boolean,
+ not_food_reason: string,
+ meal_name: string,
+ items: [ { name: string, portion_grams: number, portion_description: string, calories: number, protein_g: number, carbs_g: number, fat_g: number, fiber_g: number, sugar_g: number, sodium_mg: number, saturated_fat_g: number } ],
+ micronutrients: [ { name: string, amount: string } ],
+ health_score: number,
+ health_reason: string,
+ confidence: "low" | "medium" | "high",
+ notes: [string]
+}
+Result mapping: if is_food is false or items is empty → NO FOOD screen. Otherwise meal name = meal_name or t("result.defaultName"); each item becomes a FoodItem as described; micronutrients, health_score, health_reason, confidence and notes are shown as designed.
+
+9b. SINGLE-FOOD ESTIMATOR (used by "Add a missed item")
+Second Gemini call, text only, structured JSON { item: <same item object as above> }.
+System: "You are a nutrition database. Return conservative standard values (USDA style, scaled from per-100 g data) for the requested food and portion. Respond only with JSON matching the schema."
+User: "Food: <name>. Portion: <N g | a typical single serving>. Write name and portion_description in <Arabic|English|French>; keep JSON keys and numbers unchanged with Latin digits."
+Input limits: name trimmed to 120 chars and required; grams must be a positive finite number, capped at 3000, otherwise 0.
+
+Error mapping for both calls (by HTTP status): 429 → rate_limit; 402 → credits; 403 → denied; 400 → bad_image; anything else → server. Messages are the translation keys err.rate_limit, err.credits, err.denied, err.bad_image, err.server.
+
+========================================
+10. ACCOUNTS & DATA
+========================================
+Email + password accounts. Use Firebase Authentication (email/password) and Cloud Firestore through AI Studio's Firebase integration. If Firebase is unavailable, fall back to local accounts and storage in localStorage with exactly the same UI and behavior.
+
+Data per user (a user can only read/write their own data):
+- meals: id, name, meal_type ("breakfast" | "lunch" | "dinner" | "snack", default "snack"), eaten_at (ISO datetime, set to now on save), thumbnail (JPEG data URL, longest side 320 px, quality 0.7, or null), items (array of FoodItem), micronutrients (array of {name, amount}), calories, protein_g, carbs_g, fat_g, fiber_g, sugar_g, sodium_mg (numbers), health_score (integer or null; store the rounded health score), created_at.
+- goals (one record per user): calories (int, default 2000), protein_g (int, default 100), goal_type ("cut" | "maintain" | "bulk", default "maintain"), updated_at. Saving upserts it. When no record exists, use the defaults.
+Queries: meals from the last 30 days (since local midnight 30 days ago), newest first, limit 1000. Invalidate/refresh the meals list after save/edit/delete and the goals after saving goals.
+
+AUTH DIALOG (rounded-3xl, sm:max-w-sm): title t("auth.signIn") or t("auth.create") (font-display text-2xl), description = the reason passed in (default t("auth.reasonDefault")). Form: Email (label t("auth.email"), required) and Password (label t("auth.password"), required, minLength 6); a full-width hero lg submit button (label t("auth.wait") while busy); below it a full-width ghost link-style button toggling mode: t("auth.toSignup") / t("auth.toSignin"). On sign-in success: toast t("auth.welcome"), close, run the onSignedIn callback. On sign-up: if the backend signs the user in immediately, close and continue; otherwise show a rounded-2xl bg-primary-soft p-4 message t("auth.sent"). Any failure → toast t("auth.failed"). Sign-out button in the top bar signs out.
+
+========================================
+11. TRANSLATIONS (USE EXACTLY THESE STRINGS)
+========================================
+Use these three dictionaries verbatim, with the same keys. {x} are placeholders.
+
+--- EN ---
+"nav.snap": "Snap"
+"nav.diary": "Diary"
+"nav.insights": "Insights"
+"nav.goals": "Goals"
+"nav.main": "Main"
+"nav.signIn": "Sign in"
+"nav.signOut": "Sign out"
+"nav.language": "Language"
+"snap.title1": "Snap a photo."
+"snap.title2": "Know your calories."
+"snap.subtitle": "Point your camera at any meal and get an AI estimate of its calories, protein and macros in seconds."
+"snap.snap": "Snap your meal"
+"snap.upload": "Upload from gallery"
+"snap.drop": "…or drag and drop a photo anywhere on this card"
+"snap.cameraLabel": "Take a photo of your meal"
+"snap.uploadLabel": "Upload a photo of your meal"
+"how.title": "How it works"
+"how.s1t": "Snap your meal"
+"how.s1d": "Take a photo with your camera or upload one from your gallery."
+"how.s2t": "AI breaks it down"
+"how.s2d": "Every food is identified, portions estimated, and calories and macros computed."
+"how.s3t": "Track your goals"
+"how.s3d": "Save meals to your diary and watch daily totals against your targets."
+"analyzing.0": "Looking at your photo…"
+"analyzing.1": "Identifying every food…"
+"analyzing.2": "Estimating portion sizes…"
+"analyzing.3": "Accounting for oils and sauces…"
+"analyzing.4": "Tallying calories and protein…"
+"analyzing.alt": "Analyzing your meal"
+"photo.alt": "The photo you took"
+"nofood.title": "No food detected"
+"nofood.default": "We couldn't spot any food in that photo."
+"nofood.retry": "Try another photo"
+"error.title": "That didn't work"
+"error.retry": "Try again"
+"error.newPhoto": "New photo"
+"err.rate_limit": "Too many requests right now. Please wait a moment and try again."
+"err.credits": "AI credits are used up for this workspace. Add credits to keep analyzing."
+"err.bad_image": "The AI couldn't read that image. Try a clearer photo."
+"err.denied": "The AI service declined this request."
+"err.server": "Something went wrong analyzing your meal. Please try again."
+"err.network": "Couldn't reach the server. Check your connection and try again."
+"err.notImage": "That file isn't an image. Please choose a photo."
+"err.tooBig": "That photo is over 10 MB. Please pick a smaller one."
+"err.empty": "That file looks empty."
+"err.cantRead": "We couldn't read that image. Try a JPEG or PNG photo."
+"err.lookup": "Couldn't look up that food. Check your connection and try again."
+"conf.low": "Low confidence"
+"conf.medium": "Medium confidence"
+"conf.high": "High confidence"
+"result.defaultName": "My meal"
+"result.plate": "What's on the plate"
+"result.plateHint": "Adjust portions or add anything the AI missed. Totals update instantly."
+"result.items": "Food items"
+"result.micros": "Notable vitamins and minerals"
+"result.health": "Health score"
+"result.assumptions": "Assumptions we made"
+"result.contextTitle": "Something we can't see?"
+"result.contextHint": "Tell us about hidden ingredients, cooking methods or how much you actually ate."
+"result.contextPlaceholder": "e.g. cooked in olive oil, no dressing, I only ate half"
+"result.contextLabel": "Add context"
+"result.reanalyze": "Re-analyze with context"
+"result.saveTitle": "Save to your diary"
+"result.mealType": "Meal type"
+"result.saved": "Saved to your diary"
+"result.viewDiary": "View diary"
+"result.save": "Save to diary"
+"result.another": "Snap another meal"
+"result.saveFailed": "Couldn't save that meal. Please try again."
+"meal.breakfast": "Breakfast"
+"meal.lunch": "Lunch"
+"meal.dinner": "Dinner"
+"meal.snack": "Snack"
+"nut.calories": "Calories"
+"nut.protein": "Protein"
+"nut.carbs": "Carbs"
+"nut.fat": "Fat"
+"nut.fiber": "Fiber"
+"nut.sugar": "Sugar"
+"nut.sodium": "Sodium"
+"nut.satFat": "Sat. fat"
+"nut.p": "P"
+"nut.c": "C"
+"nut.f": "F"
+"unit.kcal": "kcal"
+"unit.g": "g"
+"unit.mg": "mg"
+"donut.aria": "Protein {p}%, carbs {c}%, fat {f}% of calories"
+"item.name": "Item name"
+"item.decrease": "Decrease {name} by 10 grams"
+"item.increase": "Increase {name} by 10 grams"
+"item.portion": "{name} portion in grams"
+"item.grams": "Grams"
+"item.rename": "Rename"
+"item.remove": "Remove"
+"item.addLabel": "Add a missed item"
+"item.addPlaceholder": "Add a missed item, e.g. side salad"
+"item.gramsOptional": "Grams (optional)"
+"item.add": "Add"
+"auth.signIn": "Sign in"
+"auth.create": "Create account"
+"auth.email": "Email"
+"auth.password": "Password"
+"auth.wait": "Please wait…"
+"auth.toSignup": "New here? Create an account"
+"auth.toSignin": "Already have an account? Sign in"
+"auth.sent": "Check your inbox to confirm your email, then come back and sign in. Your current meal stays on screen."
+"auth.welcome": "Welcome back!"
+"auth.failed": "Couldn't sign in. Check your email and password."
+"auth.reasonDefault": "Sign in to save meals to your diary."
+"auth.reasonSave": "Sign in to save this meal to your diary."
+"auth.reasonNav": "Sign in to keep a diary and track goals."
+"auth.reasonDiary": "Sign in to view your diary."
+"auth.reasonInsights": "Sign in to view your insights."
+"auth.reasonGoals": "Sign in to set your goals."
+"disclaimer": "Values are AI estimates and may be off. Not medical or dietary advice."
+"loading": "Loading"
+"goal.cut": "Cut"
+"goal.maintain": "Maintain"
+"goal.bulk": "Bulk"
+"goal.cutDesc": "Lose fat: about 20% below maintenance, higher protein."
+"goal.maintainDesc": "Hold your weight: eat at maintenance."
+"goal.bulkDesc": "Build muscle: about 10% above maintenance."
+"goal.badge": "Goal: {type}"
+"status.over": "{n} kcal over target"
+"status.short": "{n} kcal short of target"
+"status.left": "{n} kcal left"
+"status.met": "On target"
+"status.avgOver": "Averaging {n} kcal over your target"
+"status.avgShort": "Averaging {n} kcal under your target"
+"status.avgLeft": "Averaging {n} kcal under your target"
+"status.avgMet": "Averaging on target"
+"diary.title": "Your diary"
+"diary.signedOut": "Sign in to see your saved meals and daily totals."
+"diary.emptyTitle": "No meals yet"
+"diary.emptyText": "Snap your first meal and it will show up here, grouped by day with your totals."
+"diary.today": "Today"
+"diary.yesterday": "Yesterday"
+"diary.summary": "{kcal} kcal · {p} g protein"
+"diary.ofGoal": "{name}: {v}% of goal"
+"diary.editMeal": "Edit meal"
+"diary.name": "Name"
+"diary.saveChanges": "Save changes"
+"diary.cancel": "Cancel"
+"diary.edit": "Edit"
+"diary.delete": "Delete"
+"diary.deleteTitle": "Delete this meal?"
+"diary.deleteText": "\"{name}\" will be removed from your diary. This can't be undone."
+"diary.updated": "Meal updated"
+"diary.updateFailed": "Couldn't save those changes. Try again."
+"diary.deleted": "Meal deleted"
+"diary.deleteFailed": "Couldn't delete that meal. Try again."
+"insights.title": "Insights"
+"insights.signedOut": "Sign in to see calorie and protein trends against your goals."
+"insights.emptyTitle": "Nothing to chart yet"
+"insights.emptyText": "Save a few meals to your diary and your trends will appear here."
+"insights.days": "{n} days"
+"insights.range": "Time range"
+"insights.avgCal": "Avg daily calories"
+"insights.avgPro": "Avg daily protein"
+"insights.goalKcal": "kcal · goal {n}"
+"insights.goalG": "g · goal {n} g"
+"insights.calTitle": "Calories per day"
+"insights.proTitle": "Protein per day"
+"insights.goalLine": "The dashed line is your daily goal."
+"insights.goal": "goal"
+"goals.title": "Your goals"
+"goals.signedOut": "Sign in to set your goal type and daily calorie and protein targets."
+"goals.subtitle": "Daily targets used for your diary progress and insight charts."
+"goals.typeTitle": "What's your goal?"
+"goals.targets": "Daily targets"
+"goals.calLabel": "Calories (kcal)"
+"goals.proLabel": "Protein (g)"
+"goals.save": "Save goals"
+"goals.saved": "Goals saved"
+"goals.saveFailed": "Couldn't save your goals. Try again."
+"goals.calRange": "Calories should be between 500 and 10000."
+"goals.proRange": "Protein should be between 10 and 500 g."
+"goals.calc": "Quick calculator"
+"goals.calcHint": "Works out your maintenance calories (Mifflin–St Jeor), then adjusts for your goal."
+"goals.age": "Age"
+"goals.sex": "Sex"
+"goals.male": "Male"
+"goals.female": "Female"
+"goals.height": "Height (cm)"
+"goals.weight": "Weight (kg)"
+"goals.activity": "Activity level"
+"act.sedentary": "Sedentary (little exercise)"
+"act.light": "Light (1–3 days/week)"
+"act.moderate": "Moderate (3–5 days/week)"
+"act.active": "Active (6–7 days/week)"
+"act.very": "Very active (physical job)"
+"goals.calculate": "Calculate"
+"goals.realistic": "Please enter a realistic age, height and weight."
+"goals.maintenance": "Maintenance"
+"goals.target": "{type} target"
+"goals.proteinRate": "{rate} g per kg"
+"goals.floorNote": "Raised to a safe minimum of {n} kcal."
+"goals.apply": "Use these numbers"
+"goals.applied": "Applied. You can still edit them, then press Save goals."
+"notFound.title": "Page not found"
+"notFound.text": "The page you're looking for doesn't exist or has been moved."
+"notFound.home": "Go home"
+
+--- AR ---
+"nav.snap": "التقاط"
+"nav.diary": "اليوميات"
+"nav.insights": "الإحصاءات"
+"nav.goals": "الأهداف"
+"nav.main": "التنقل الرئيسي"
+"nav.signIn": "تسجيل الدخول"
+"nav.signOut": "تسجيل الخروج"
+"nav.language": "اللغة"
+"snap.title1": "التقط صورة."
+"snap.title2": "واعرف سعراتك."
+"snap.subtitle": "وجّه الكاميرا إلى أي وجبة واحصل خلال ثوانٍ على تقدير بالذكاء الاصطناعي للسعرات والبروتين والعناصر الغذائية."
+"snap.snap": "صوّر وجبتك"
+"snap.upload": "رفع من المعرض"
+"snap.drop": "…أو اسحب صورة وأفلتها في أي مكان على هذه البطاقة"
+"snap.cameraLabel": "التقط صورة لوجبتك"
+"snap.uploadLabel": "ارفع صورة لوجبتك"
+"how.title": "كيف يعمل"
+"how.s1t": "صوّر وجبتك"
+"how.s1d": "التقط صورة بالكاميرا أو ارفع صورة من المعرض."
+"how.s2t": "الذكاء الاصطناعي يحللها"
+"how.s2d": "يتعرف على كل صنف ويقدّر الحصص ويحسب السعرات والعناصر الغذائية."
+"how.s3t": "تابع أهدافك"
+"how.s3d": "احفظ وجباتك في اليوميات وتابع مجموعك اليومي مقارنةً بأهدافك."
+"analyzing.0": "نفحص صورتك…"
+"analyzing.1": "نتعرف على كل صنف…"
+"analyzing.2": "نقدّر أحجام الحصص…"
+"analyzing.3": "نحتسب الزيوت والصلصات…"
+"analyzing.4": "نجمع السعرات والبروتين…"
+"analyzing.alt": "جارٍ تحليل وجبتك"
+"photo.alt": "الصورة التي التقطتها"
+"nofood.title": "لم نجد طعامًا"
+"nofood.default": "لم نتمكن من رؤية أي طعام في هذه الصورة."
+"nofood.retry": "جرّب صورة أخرى"
+"error.title": "لم ينجح ذلك"
+"error.retry": "حاول مجددًا"
+"error.newPhoto": "صورة جديدة"
+"err.rate_limit": "طلبات كثيرة الآن. انتظر قليلًا ثم حاول مجددًا."
+"err.credits": "نفد رصيد الذكاء الاصطناعي لمساحة العمل هذه. أضف رصيدًا لمتابعة التحليل."
+"err.bad_image": "تعذّر على الذكاء الاصطناعي قراءة الصورة. جرّب صورة أوضح."
+"err.denied": "رفضت خدمة الذكاء الاصطناعي هذا الطلب."
+"err.server": "حدث خطأ أثناء تحليل وجبتك. حاول مجددًا."
+"err.network": "تعذّر الوصول إلى الخادم. تحقق من اتصالك وحاول مجددًا."
+"err.notImage": "هذا الملف ليس صورة. اختر صورة من فضلك."
+"err.tooBig": "حجم الصورة أكبر من 10 ميغابايت. اختر صورة أصغر."
+"err.empty": "يبدو أن الملف فارغ."
+"err.cantRead": "تعذّرت قراءة الصورة. جرّب صورة JPEG أو PNG."
+"err.lookup": "تعذّر البحث عن هذا الصنف. تحقق من اتصالك وحاول مجددًا."
+"conf.low": "ثقة منخفضة"
+"conf.medium": "ثقة متوسطة"
+"conf.high": "ثقة عالية"
+"result.defaultName": "وجبتي"
+"result.plate": "ما في الطبق"
+"result.plateHint": "عدّل الحصص أو أضف ما فات الذكاء الاصطناعي. يتحدّث المجموع فورًا."
+"result.items": "أصناف الطعام"
+"result.micros": "فيتامينات ومعادن بارزة"
+"result.health": "مؤشر الصحة"
+"result.assumptions": "افتراضاتنا"
+"result.contextTitle": "هل هناك ما لا نراه؟"
+"result.contextHint": "أخبرنا عن مكونات مخفية أو طريقة الطهي أو الكمية التي أكلتها فعلًا."
+"result.contextPlaceholder": "مثلًا: مطبوخ بزيت الزيتون، بدون صلصة، أكلت النصف فقط"
+"result.contextLabel": "أضف تفاصيل"
+"result.reanalyze": "أعد التحليل بالتفاصيل"
+"result.saveTitle": "احفظ في يومياتك"
+"result.mealType": "نوع الوجبة"
+"result.saved": "حُفظت في يومياتك"
+"result.viewDiary": "عرض اليوميات"
+"result.save": "احفظ في اليوميات"
+"result.another": "صوّر وجبة أخرى"
+"result.saveFailed": "تعذّر حفظ الوجبة. حاول مجددًا."
+"meal.breakfast": "فطور"
+"meal.lunch": "غداء"
+"meal.dinner": "عشاء"
+"meal.snack": "وجبة خفيفة"
+"nut.calories": "السعرات"
+"nut.protein": "البروتين"
+"nut.carbs": "الكربوهيدرات"
+"nut.fat": "الدهون"
+"nut.fiber": "الألياف"
+"nut.sugar": "السكر"
+"nut.sodium": "الصوديوم"
+"nut.satFat": "دهون مشبعة"
+"nut.p": "ب"
+"nut.c": "ك"
+"nut.f": "د"
+"unit.kcal": "سعرة"
+"unit.g": "غ"
+"unit.mg": "ملغ"
+"donut.aria": "البروتين {p}%، الكربوهيدرات {c}%، الدهون {f}% من السعرات"
+"item.name": "اسم الصنف"
+"item.decrease": "إنقاص {name} بمقدار 10 غرامات"
+"item.increase": "زيادة {name} بمقدار 10 غرامات"
+"item.portion": "حصة {name} بالغرام"
+"item.grams": "غرام"
+"item.rename": "إعادة تسمية"
+"item.remove": "حذف"
+"item.addLabel": "أضف صنفًا فاتنا"
+"item.addPlaceholder": "أضف صنفًا فاتنا، مثل سلطة جانبية"
+"item.gramsOptional": "الغرامات (اختياري)"
+"item.add": "إضافة"
+"auth.signIn": "تسجيل الدخول"
+"auth.create": "إنشاء حساب"
+"auth.email": "البريد الإلكتروني"
+"auth.password": "كلمة المرور"
+"auth.wait": "لحظة من فضلك…"
+"auth.toSignup": "جديد هنا؟ أنشئ حسابًا"
+"auth.toSignin": "لديك حساب؟ سجّل الدخول"
+"auth.sent": "تحقق من بريدك لتأكيد عنوانك، ثم عد وسجّل الدخول. ستبقى وجبتك الحالية على الشاشة."
+"auth.welcome": "مرحبًا بعودتك!"
+"auth.failed": "تعذّر تسجيل الدخول. تحقق من البريد وكلمة المرور."
+"auth.reasonDefault": "سجّل الدخول لحفظ الوجبات في يومياتك."
+"auth.reasonSave": "سجّل الدخول لحفظ هذه الوجبة في يومياتك."
+"auth.reasonNav": "سجّل الدخول لتحتفظ بيومياتك وتتابع أهدافك."
+"auth.reasonDiary": "سجّل الدخول لعرض يومياتك."
+"auth.reasonInsights": "سجّل الدخول لعرض إحصاءاتك."
+"auth.reasonGoals": "سجّل الدخول لتحديد أهدافك."
+"disclaimer": "القيم تقديرات من الذكاء الاصطناعي وقد لا تكون دقيقة. ليست نصيحة طبية أو غذائية."
+"loading": "جارٍ التحميل"
+"goal.cut": "تنشيف"
+"goal.maintain": "ثبات"
+"goal.bulk": "تضخيم"
+"goal.cutDesc": "خسارة الدهون: نحو 20% أقل من سعرات الثبات مع بروتين أعلى."
+"goal.maintainDesc": "الحفاظ على وزنك: تناول سعرات الثبات."
+"goal.bulkDesc": "بناء العضلات: نحو 10% أكثر من سعرات الثبات."
+"goal.badge": "الهدف: {type}"
+"status.over": "{n} سعرة فوق الهدف"
+"status.short": "{n} سعرة أقل من الهدف"
+"status.left": "متبقٍ {n} سعرة"
+"status.met": "ضمن الهدف"
+"status.avgOver": "متوسطك أعلى من الهدف بـ {n} سعرة"
+"status.avgShort": "متوسطك أقل من الهدف بـ {n} سعرة"
+"status.avgLeft": "متوسطك أقل من الهدف بـ {n} سعرة"
+"status.avgMet": "متوسطك ضمن الهدف"
+"diary.title": "يومياتك"
+"diary.signedOut": "سجّل الدخول لعرض وجباتك المحفوظة ومجموعك اليومي."
+"diary.emptyTitle": "لا وجبات بعد"
+"diary.emptyText": "صوّر أول وجبة وستظهر هنا مجمّعة حسب اليوم مع مجموعك."
+"diary.today": "اليوم"
+"diary.yesterday": "أمس"
+"diary.summary": "{kcal} سعرة · {p} غ بروتين"
+"diary.ofGoal": "{name}: {v}% من الهدف"
+"diary.editMeal": "تعديل الوجبة"
+"diary.name": "الاسم"
+"diary.saveChanges": "حفظ التغييرات"
+"diary.cancel": "إلغاء"
+"diary.edit": "تعديل"
+"diary.delete": "حذف"
+"diary.deleteTitle": "حذف هذه الوجبة؟"
+"diary.deleteText": "ستُحذف «{name}» من يومياتك. لا يمكن التراجع عن ذلك."
+"diary.updated": "تم تحديث الوجبة"
+"diary.updateFailed": "تعذّر حفظ التغييرات. حاول مجددًا."
+"diary.deleted": "تم حذف الوجبة"
+"diary.deleteFailed": "تعذّر حذف الوجبة. حاول مجددًا."
+"insights.title": "الإحصاءات"
+"insights.signedOut": "سجّل الدخول لعرض اتجاهات السعرات والبروتين مقارنةً بأهدافك."
+"insights.emptyTitle": "لا بيانات للرسم بعد"
+"insights.emptyText": "احفظ بضع وجبات في يومياتك وستظهر اتجاهاتك هنا."
+"insights.days": "{n} يومًا"
+"insights.range": "الفترة الزمنية"
+"insights.avgCal": "متوسط السعرات اليومية"
+"insights.avgPro": "متوسط البروتين اليومي"
+"insights.goalKcal": "سعرة · الهدف {n}"
+"insights.goalG": "غ · الهدف {n} غ"
+"insights.calTitle": "السعرات يوميًا"
+"insights.proTitle": "البروتين يوميًا"
+"insights.goalLine": "الخط المتقطع هو هدفك اليومي."
+"insights.goal": "الهدف"
+"goals.title": "أهدافك"
+"goals.signedOut": "سجّل الدخول لتحديد نوع هدفك وأهداف السعرات والبروتين اليومية."
+"goals.subtitle": "أهداف يومية تُستخدم في تقدّم اليوميات ورسوم الإحصاءات."
+"goals.typeTitle": "ما هدفك؟"
+"goals.targets": "الأهداف اليومية"
+"goals.calLabel": "السعرات (سعرة)"
+"goals.proLabel": "البروتين (غ)"
+"goals.save": "حفظ الأهداف"
+"goals.saved": "تم حفظ الأهداف"
+"goals.saveFailed": "تعذّر حفظ أهدافك. حاول مجددًا."
+"goals.calRange": "يجب أن تكون السعرات بين 500 و10000."
+"goals.proRange": "يجب أن يكون البروتين بين 10 و500 غ."
+"goals.calc": "حاسبة سريعة"
+"goals.calcHint": "تحسب سعرات الثبات (معادلة ميفلين-سانت جيور) ثم تعدّلها حسب هدفك."
+"goals.age": "العمر"
+"goals.sex": "الجنس"
+"goals.male": "ذكر"
+"goals.female": "أنثى"
+"goals.height": "الطول (سم)"
+"goals.weight": "الوزن (كغ)"
+"goals.activity": "مستوى النشاط"
+"act.sedentary": "خامل (تمارين قليلة)"
+"act.light": "خفيف (1–3 أيام أسبوعيًا)"
+"act.moderate": "متوسط (3–5 أيام أسبوعيًا)"
+"act.active": "نشيط (6–7 أيام أسبوعيًا)"
+"act.very": "نشيط جدًا (عمل بدني)"
+"goals.calculate": "احسب"
+"goals.realistic": "أدخل عمرًا وطولًا ووزنًا واقعية."
+"goals.maintenance": "سعرات الثبات"
+"goals.target": "هدف {type}"
+"goals.proteinRate": "{rate} غ لكل كغ"
+"goals.floorNote": "رُفعت إلى حدّ أدنى آمن قدره {n} سعرة."
+"goals.apply": "استخدم هذه الأرقام"
+"goals.applied": "تم التطبيق. ما زال بإمكانك تعديلها ثم اضغط حفظ الأهداف."
+"notFound.title": "الصفحة غير موجودة"
+"notFound.text": "الصفحة التي تبحث عنها غير موجودة أو نُقلت."
+"notFound.home": "الرئيسية"
+
+--- FR ---
+"nav.snap": "Photo"
+"nav.diary": "Journal"
+"nav.insights": "Tendances"
+"nav.goals": "Objectifs"
+"nav.main": "Navigation principale"
+"nav.signIn": "Connexion"
+"nav.signOut": "Déconnexion"
+"nav.language": "Langue"
+"snap.title1": "Prenez une photo."
+"snap.title2": "Connaissez vos calories."
+"snap.subtitle": "Visez n'importe quel repas et obtenez en quelques secondes une estimation IA des calories, protéines et macros."
+"snap.snap": "Photographier mon repas"
+"snap.upload": "Importer depuis la galerie"
+"snap.drop": "…ou glissez-déposez une photo n'importe où sur cette carte"
+"snap.cameraLabel": "Prendre une photo de votre repas"
+"snap.uploadLabel": "Importer une photo de votre repas"
+"how.title": "Comment ça marche"
+"how.s1t": "Photographiez votre repas"
+"how.s1d": "Prenez une photo avec l'appareil ou importez-en une depuis la galerie."
+"how.s2t": "L'IA l'analyse"
+"how.s2d": "Chaque aliment est identifié, les portions estimées, les calories et macros calculées."
+"how.s3t": "Suivez vos objectifs"
+"how.s3d": "Enregistrez vos repas et comparez vos totaux du jour à vos objectifs."
+"analyzing.0": "Examen de votre photo…"
+"analyzing.1": "Identification des aliments…"
+"analyzing.2": "Estimation des portions…"
+"analyzing.3": "Prise en compte des huiles et sauces…"
+"analyzing.4": "Calcul des calories et protéines…"
+"analyzing.alt": "Analyse de votre repas"
+"photo.alt": "La photo que vous avez prise"
+"nofood.title": "Aucun aliment détecté"
+"nofood.default": "Nous n'avons repéré aucun aliment sur cette photo."
+"nofood.retry": "Essayer une autre photo"
+"error.title": "Ça n'a pas marché"
+"error.retry": "Réessayer"
+"error.newPhoto": "Nouvelle photo"
+"err.rate_limit": "Trop de demandes en ce moment. Patientez un instant puis réessayez."
+"err.credits": "Les crédits IA de cet espace sont épuisés. Ajoutez des crédits pour continuer."
+"err.bad_image": "L'IA n'a pas pu lire cette image. Essayez une photo plus nette."
+"err.denied": "Le service IA a refusé cette demande."
+"err.server": "Un problème est survenu pendant l'analyse. Veuillez réessayer."
+"err.network": "Impossible de joindre le serveur. Vérifiez votre connexion et réessayez."
+"err.notImage": "Ce fichier n'est pas une image. Choisissez une photo."
+"err.tooBig": "Cette photo dépasse 10 Mo. Choisissez-en une plus petite."
+"err.empty": "Ce fichier semble vide."
+"err.cantRead": "Impossible de lire cette image. Essayez une photo JPEG ou PNG."
+"err.lookup": "Impossible de trouver cet aliment. Vérifiez votre connexion et réessayez."
+"conf.low": "Confiance faible"
+"conf.medium": "Confiance moyenne"
+"conf.high": "Confiance élevée"
+"result.defaultName": "Mon repas"
+"result.plate": "Dans l'assiette"
+"result.plateHint": "Ajustez les portions ou ajoutez ce que l'IA a manqué. Les totaux se mettent à jour aussitôt."
+"result.items": "Aliments"
+"result.micros": "Vitamines et minéraux notables"
+"result.health": "Score santé"
+"result.assumptions": "Nos hypothèses"
+"result.contextTitle": "Quelque chose qu'on ne voit pas ?"
+"result.contextHint": "Précisez les ingrédients cachés, le mode de cuisson ou la quantité réellement mangée."
+"result.contextPlaceholder": "ex. cuit à l'huile d'olive, sans sauce, j'en ai mangé la moitié"
+"result.contextLabel": "Ajouter des précisions"
+"result.reanalyze": "Réanalyser avec ces précisions"
+"result.saveTitle": "Enregistrer dans le journal"
+"result.mealType": "Type de repas"
+"result.saved": "Enregistré dans votre journal"
+"result.viewDiary": "Voir le journal"
+"result.save": "Enregistrer"
+"result.another": "Photographier un autre repas"
+"result.saveFailed": "Impossible d'enregistrer ce repas. Veuillez réessayer."
+"meal.breakfast": "Petit-déjeuner"
+"meal.lunch": "Déjeuner"
+"meal.dinner": "Dîner"
+"meal.snack": "Collation"
+"nut.calories": "Calories"
+"nut.protein": "Protéines"
+"nut.carbs": "Glucides"
+"nut.fat": "Lipides"
+"nut.fiber": "Fibres"
+"nut.sugar": "Sucres"
+"nut.sodium": "Sodium"
+"nut.satFat": "Gras saturés"
+"nut.p": "P"
+"nut.c": "G"
+"nut.f": "L"
+"unit.kcal": "kcal"
+"unit.g": "g"
+"unit.mg": "mg"
+"donut.aria": "Protéines {p} %, glucides {c} %, lipides {f} % des calories"
+"item.name": "Nom de l'aliment"
+"item.decrease": "Diminuer {name} de 10 grammes"
+"item.increase": "Augmenter {name} de 10 grammes"
+"item.portion": "Portion de {name} en grammes"
+"item.grams": "Grammes"
+"item.rename": "Renommer"
+"item.remove": "Retirer"
+"item.addLabel": "Ajouter un aliment oublié"
+"item.addPlaceholder": "Ajouter un aliment oublié, ex. salade"
+"item.gramsOptional": "Grammes (facultatif)"
+"item.add": "Ajouter"
+"auth.signIn": "Connexion"
+"auth.create": "Créer un compte"
+"auth.email": "E-mail"
+"auth.password": "Mot de passe"
+"auth.wait": "Patientez…"
+"auth.toSignup": "Nouveau ? Créez un compte"
+"auth.toSignin": "Déjà un compte ? Connectez-vous"
+"auth.sent": "Consultez votre boîte mail pour confirmer votre adresse, puis revenez vous connecter. Votre repas reste à l'écran."
+"auth.welcome": "Bon retour !"
+"auth.failed": "Connexion impossible. Vérifiez votre e-mail et votre mot de passe."
+"auth.reasonDefault": "Connectez-vous pour enregistrer vos repas."
+"auth.reasonSave": "Connectez-vous pour enregistrer ce repas dans votre journal."
+"auth.reasonNav": "Connectez-vous pour tenir un journal et suivre vos objectifs."
+"auth.reasonDiary": "Connectez-vous pour voir votre journal."
+"auth.reasonInsights": "Connectez-vous pour voir vos tendances."
+"auth.reasonGoals": "Connectez-vous pour définir vos objectifs."
+"disclaimer": "Valeurs estimées par IA, possiblement inexactes. Pas un avis médical ou diététique."
+"loading": "Chargement"
+"goal.cut": "Sèche"
+"goal.maintain": "Maintien"
+"goal.bulk": "Prise de masse"
+"goal.cutDesc": "Perdre du gras : environ 20 % sous le maintien, plus de protéines."
+"goal.maintainDesc": "Garder votre poids : manger au niveau du maintien."
+"goal.bulkDesc": "Prendre du muscle : environ 10 % au-dessus du maintien."
+"goal.badge": "Objectif : {type}"
+"status.over": "{n} kcal au-dessus de l'objectif"
+"status.short": "{n} kcal sous l'objectif"
+"status.left": "Encore {n} kcal"
+"status.met": "Dans l'objectif"
+"status.avgOver": "En moyenne {n} kcal au-dessus de l'objectif"
+"status.avgShort": "En moyenne {n} kcal sous l'objectif"
+"status.avgLeft": "En moyenne {n} kcal sous l'objectif"
+"status.avgMet": "En moyenne dans l'objectif"
+"diary.title": "Votre journal"
+"diary.signedOut": "Connectez-vous pour voir vos repas enregistrés et vos totaux du jour."
+"diary.emptyTitle": "Aucun repas pour l'instant"
+"diary.emptyText": "Photographiez votre premier repas : il apparaîtra ici, groupé par jour avec vos totaux."
+"diary.today": "Aujourd'hui"
+"diary.yesterday": "Hier"
+"diary.summary": "{kcal} kcal · {p} g de protéines"
+"diary.ofGoal": "{name} : {v} % de l'objectif"
+"diary.editMeal": "Modifier le repas"
+"diary.name": "Nom"
+"diary.saveChanges": "Enregistrer"
+"diary.cancel": "Annuler"
+"diary.edit": "Modifier"
+"diary.delete": "Supprimer"
+"diary.deleteTitle": "Supprimer ce repas ?"
+"diary.deleteText": "« {name} » sera retiré de votre journal. Cette action est définitive."
+"diary.updated": "Repas mis à jour"
+"diary.updateFailed": "Impossible d'enregistrer les modifications. Réessayez."
+"diary.deleted": "Repas supprimé"
+"diary.deleteFailed": "Impossible de supprimer ce repas. Réessayez."
+"insights.title": "Tendances"
+"insights.signedOut": "Connectez-vous pour voir l'évolution de vos calories et protéines."
+"insights.emptyTitle": "Rien à afficher pour l'instant"
+"insights.emptyText": "Enregistrez quelques repas et vos tendances apparaîtront ici."
+"insights.days": "{n} jours"
+"insights.range": "Période"
+"insights.avgCal": "Calories moyennes / jour"
+"insights.avgPro": "Protéines moyennes / jour"
+"insights.goalKcal": "kcal · objectif {n}"
+"insights.goalG": "g · objectif {n} g"
+"insights.calTitle": "Calories par jour"
+"insights.proTitle": "Protéines par jour"
+"insights.goalLine": "La ligne pointillée est votre objectif quotidien."
+"insights.goal": "objectif"
+"goals.title": "Vos objectifs"
+"goals.signedOut": "Connectez-vous pour choisir votre objectif et vos cibles de calories et protéines."
+"goals.subtitle": "Cibles quotidiennes utilisées dans le journal et les graphiques."
+"goals.typeTitle": "Quel est votre objectif ?"
+"goals.targets": "Cibles quotidiennes"
+"goals.calLabel": "Calories (kcal)"
+"goals.proLabel": "Protéines (g)"
+"goals.save": "Enregistrer"
+"goals.saved": "Objectifs enregistrés"
+"goals.saveFailed": "Impossible d'enregistrer vos objectifs. Réessayez."
+"goals.calRange": "Les calories doivent être comprises entre 500 et 10000."
+"goals.proRange": "Les protéines doivent être comprises entre 10 et 500 g."
+"goals.calc": "Calculateur rapide"
+"goals.calcHint": "Calcule vos calories de maintien (Mifflin–St Jeor), puis les ajuste selon votre objectif."
+"goals.age": "Âge"
+"goals.sex": "Sexe"
+"goals.male": "Homme"
+"goals.female": "Femme"
+"goals.height": "Taille (cm)"
+"goals.weight": "Poids (kg)"
+"goals.activity": "Niveau d'activité"
+"act.sedentary": "Sédentaire (peu d'exercice)"
+"act.light": "Léger (1–3 jours/semaine)"
+"act.moderate": "Modéré (3–5 jours/semaine)"
+"act.active": "Actif (6–7 jours/semaine)"
+"act.very": "Très actif (travail physique)"
+"goals.calculate": "Calculer"
+"goals.realistic": "Saisissez un âge, une taille et un poids réalistes."
+"goals.maintenance": "Maintien"
+"goals.target": "Cible {type}"
+"goals.proteinRate": "{rate} g par kg"
+"goals.floorNote": "Relevé au minimum sûr de {n} kcal."
+"goals.apply": "Utiliser ces valeurs"
+"goals.applied": "Appliqué. Vous pouvez encore les modifier, puis Enregistrer."
+"notFound.title": "Page introuvable"
+"notFound.text": "La page que vous cherchez n'existe pas ou a été déplacée."
+"notFound.home": "Accueil"
+
+========================================
+12. FINAL CHECKLIST
+========================================
+- Dark warm theme only, exact tokens from section 2, no shadows, no green/black look, no gradients.
+- Fonts: Fraunces for display, Outfit for body, IBM Plex Sans Arabic for Arabic.
+- Language switcher (العربية / English / Français) in the top bar, RTL for Arabic, Latin digits everywhere.
+- Camera/gallery/drag-drop upload, 1280px JPEG compression, scan-line analyzing animation.
+- Editable items with slider, ±10 g, rename, remove, add-by-AI, totals computed from items.
+- Re-analyze with context, health score, assumptions, micronutrient chips, confidence badge.
+- Diary grouped by day with progress bars and goal status; Insights with 7/30-day bar charts and dashed goal lines; Goals with Cut / Maintain / Bulk, targets and the Mifflin–St Jeor calculator.
+- Footer at the very bottom of every page, always LTR, exact text: made by keyaraga

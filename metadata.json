@@ -1,0 +1,6 @@
+{
+  "name": "SnapCal",
+  "description": "Snap a photo of any meal and SnapCal's AI estimates calories, protein, carbs, fat, and more in seconds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

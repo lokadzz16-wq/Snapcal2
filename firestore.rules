@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidMeal(data) {
+      return data.id is string && data.id.size() > 0 && data.id.size() <= 128 &&
+             data.userId is string && data.userId.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 200 &&
+             data.mealType in ['breakfast', 'lunch', 'dinner', 'snack'] &&
+             data.calories is number && data.calories >= 0 && data.calories <= 20000 &&
+             data.protein_g is number && data.protein_g >= 0 && data.protein_g <= 1000 &&
+             data.carbs_g is number && data.carbs_g >= 0 && data.carbs_g <= 2000 &&
+             data.fat_g is number && data.fat_g >= 0 && data.fat_g <= 1000 &&
+             (!('fiber_g' in data) || (data.fiber_g is number && data.fiber_g >= 0)) &&
+             (!('sugar_g' in data) || (data.sugar_g is number && data.sugar_g >= 0)) &&
+             (!('sodium_mg' in data) || (data.sodium_mg is number && data.sodium_mg >= 0)) &&
+             (!('health_score' in data) || data.health_score == null || (data.health_score is number && data.health_score >= 1 && data.health_score <= 10)) &&
+             (!('eatenAt' in data) || (data.eatenAt is string && data.eatenAt.size() <= 50)) &&
+             (!('thumbnail' in data) || data.thumbnail == null || (data.thumbnail is string && data.thumbnail.size() <= 500000)) &&
+             (!('items' in data) || data.items is list) &&
+             (!('micronutrients' in data) || data.micronutrients is list);
+    }
+
+    function isValidGoal(data) {
+      return data.userId is string && data.userId.size() > 0 &&
+             data.calories is number && data.calories >= 500 && data.calories <= 10000 &&
+             data.protein_g is number && data.protein_g >= 10 && data.protein_g <= 500 &&
+             data.goalType in ['cut', 'maintain', 'bulk'];
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+
+      match /meals/{mealId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(mealId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().id == mealId &&
+                         incoming().createdAt is timestamp &&
+                         incoming().createdAt <= request.time &&
+                         isValidMeal(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(mealId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().updatedAt is timestamp &&
+                         incoming().updatedAt <= request.time &&
+                         isValidMeal(incoming());
+
+        allow delete: if isSignedIn() && request.auth.uid == userId;
+      }
+
+      match /goals/{goalId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow write: if isSignedIn() &&
+                        request.auth.uid == userId &&
+                        isValidId(goalId) &&
+                        incoming().userId == request.auth.uid &&
+                        isValidGoal(incoming());
+      }
+    }
+  }
+}
